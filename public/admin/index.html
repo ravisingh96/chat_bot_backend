@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>AskAnythingAnswers Admin</title>
+<style>
+  :root {
+    --bg: #faf8ff; --card: #fff; --ink: #131b2e; --muted: #5b6577; --line: #e2e7ff;
+    --primary: #00685f; --primary-ink: #fff; --soft: #f2f3ff; --danger: #ba1a1a; --ok: #0f766e; --warn: #b45309;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1424; --card: #171d31; --ink: #e8ecfa; --muted: #98a2bd; --line: #2a3350; --primary: #4fd1c5; --primary-ink: #04201d; --soft: #1d2540; --danger: #ff8a80; --ok: #5eead4; --warn: #fbbf24; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--ink); }
+  button, input, select { font: inherit; color: inherit; }
+  .btn { background: var(--primary); color: var(--primary-ink); border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 600; cursor: pointer; }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .btn.danger { background: transparent; color: var(--danger); border: 1px solid var(--line); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  input, select { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .login { max-width: 360px; margin: 12vh auto; padding: 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .login form { display: grid; gap: 12px; }
+  h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 18px; margin: 0 0 12px; } h3 { font-size: 15px; margin: 0 0 8px; }
+  .muted { color: var(--muted); } .err { color: var(--danger); min-height: 1.4em; }
+  .app { display: grid; grid-template-columns: 210px 1fr; min-height: 100vh; }
+  nav { border-right: 1px solid var(--line); padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; background: var(--card); }
+  nav .brand { font-weight: 800; letter-spacing: .02em; padding: 4px 10px 14px; }
+  nav button { text-align: left; background: transparent; border: 0; border-radius: 8px; padding: 9px 10px; cursor: pointer; font-weight: 600; color: var(--muted); }
+  nav button.on { background: var(--soft); color: var(--ink); }
+  nav .who { margin-top: auto; padding: 10px; font-size: 12px; }
+  main { padding: 20px; min-width: 0; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .bar .grow { flex: 1 1 200px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .stat b { display: block; font-size: 26px; } .stat span { color: var(--muted); font-size: 12px; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+  tr.click { cursor: pointer; } tr.click:hover { background: var(--soft); }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--soft); }
+  .pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.off { color: var(--danger); }
+  .pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 12px; }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; justify-content: flex-end; z-index: 10; }
+  .panel { width: min(560px, 100%); height: 100%; background: var(--bg); overflow-y: auto; padding: 18px; }
+  .msgs { display: grid; gap: 8px; margin-top: 12px; }
+  .msg { max-width: 85%; padding: 8px 12px; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .msg.assistant { background: var(--card); border: 1px solid var(--line); justify-self: start; }
+  .msg.user { background: var(--primary); color: var(--primary-ink); justify-self: end; }
+  .msg small { display: block; opacity: .7; font-size: 11px; margin-top: 2px; }
+  .kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 10px; } .kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
+  .hidden { display: none !important; }
+  @media (max-width: 760px) { .app { grid-template-columns: 1fr; } nav { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--line); } nav .who { margin: 0 0 0 auto; } main { padding: 14px; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function () {
+  'use strict';
+  var root = document.getElementById('root');
+  var state = { token: null, user: null, view: 'dashboard' };
+
+  // ---- tiny DOM helper: all dynamic text goes through textContent, never innerHTML ----
+  function el(tag, props) {
+    var node = document.createElement(tag);
+    props = props || {};
+    Object.keys(props).forEach(function (k) {
+      var v = props[k];
+      if (k === 'class') node.className = v;
+      else if (k.slice(0, 2) === 'on') node.addEventListener(k.slice(2), v);
+      else if (v !== false && v != null) node.setAttribute(k, v === true ? '' : v);
+    });
+    for (var i = 2; i < arguments.length; i++) append(node, arguments[i]);
+    return node;
+  }
+  function append(node, c) {
+    if (c == null || c === false) return;
+    if (Array.isArray(c)) c.forEach(function (x) { append(node, x); });
+    else node.appendChild(c.nodeType ? c : document.createTextNode(String(c)));
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); return node; }
+
+  function store(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
+  function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+  function fmt(iso) { return iso ? new Date(iso).toLocaleString() : ''; }
+
+  // ---- API ----
+  function api(path, opts) {
+    opts = opts || {};
+    var headers = { 'Content-Type': 'application/json' };
+    if (state.token) headers.Authorization = 'Bearer ' + state.token;
+    return fetch('/api' + path, { method: opts.method || 'GET', headers: headers, body: opts.body ? JSON.stringify(opts.body) : undefined })
+      .then(function (res) {
+        if (res.status === 401 && state.token) { logout(); throw new Error('Session expired, please sign in again'); }
+        if (!res.ok) return res.json().catch(function () { return {}; }).then(function (j) {
+          var m = j.message; throw new Error(Array.isArray(m) ? m.join(', ') : m || 'Request failed (' + res.status + ')');
+        });
+        return res.json();
+      });
+  }
+  function qs(obj) {
+    var p = Object.keys(obj).filter(function (k) { return obj[k] !== '' && obj[k] != null && obj[k] !== false; })
+      .map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(obj[k]); });
+    return p.length ? '?' + p.join('&') : '';
+  }
+
+  // ---- auth ----
+  function logout() { state.token = null; state.user = null; store('aaa_token', null); render(); }
+
+  function renderLogin() {
+    var err = el('div', { class: 'err', role: 'alert' });
+    var email = el('input', { type: 'email', required: true, autocomplete: 'username', placeholder: 'Email' });
+    var pass = el('input', { type: 'password', required: true, autocomplete: 'current-password', placeholder: 'Password' });
+    var btn = el('button', { class: 'btn', type: 'submit' }, 'Sign in');
+    var form = el('form', { onsubmit: function (e) {
+      e.preventDefault(); btn.disabled = true; err.textContent = '';
+      api('/auth/login', { method: 'POST', body: { email: email.value, password: pass.value } })
+        .then(function (r) { state.token = r.token; state.user = r.user; store('aaa_token', r.token); render(); })
+        .catch(function (x) { err.textContent = x.message; btn.disabled = false; });
+    } }, email, pass, btn, err);
+    clear(root).appendChild(el('div', { class: 'login' }, el('div', { class: 'card' },
+      el('h1', null, 'AskAnythingAnswers'), el('p', { class: 'muted' }, 'Admin panel. Sign in to continue.'), form)));
+  }
+
+  // ---- shell ----
+  var views = {
+    dashboard: { label: 'Dashboard', fn: viewDashboard },
+    chats: { label: 'Chats', fn: viewChats },
+    leads: { label: 'Leads', fn: viewLeads },
+    users: { label: 'Users', fn: viewUsers, admin: true }
+  };
+  var content;
+
+  function render() {
+    if (!state.user) return renderLogin();
+    var navBtns = Object.keys(views).filter(function (k) { return !views[k].admin || state.user.role === 'admin'; })
+      .map(function (k) { return el('button', { class: state.view === k ? 'on' : '', onclick: function () { state.view = k; render(); } }, views[k].label); });
+    content = el('main');
+    clear(root).appendChild(el('div', { class: 'app' },
+      el('nav', null, el('div', { class: 'brand' }, 'AskAnythingAnswers'), navBtns,
+        el('div', { class: 'who muted' }, state.user.name, el('br'), el('span', { class: 'pill' }, state.user.role), ' ',
+          el('button', { class: 'btn ghost', style: 'padding:3px 8px;margin-top:6px', onclick: logout }, 'Sign out'))),
+      content));
+    if (!views[state.view] || (views[state.view].admin && state.user.role !== 'admin')) state.view = 'dashboard';
+    views[state.view].fn(content);
+  }
+
+  function errBox(node, e) { clear(node).appendChild(el('p', { class: 'err' }, e.message)); }
+
+  function pager(info, go) {
+    var pages = Math.max(1, Math.ceil(info.total / info.limit));
+    return el('div', { class: 'pager' }, el('span', { class: 'muted' }, info.total + ' total · page ' + info.page + ' of ' + pages),
+      el('button', { class: 'btn ghost', disabled: info.page <= 1, onclick: function () { go(info.page - 1); } }, 'Prev'),
+      el('button', { class: 'btn ghost', disabled: info.page >= pages, onclick: function () { go(info.page + 1); } }, 'Next'));
+  }
+
+  function table(head, rows) {
+    return el('div', { class: 'tablewrap' }, el('table', null,
+      el('thead', null, el('tr', null, head.map(function (h) { return el('th', null, h); }))),
+      el('tbody', null, rows.length ? rows : el('tr', null, el('td', { colspan: head.length, class: 'muted' }, 'Nothing here yet.')))));
+  }
+
+  function leadPill(s) { return s ? el('span', { class: 'pill ' + (s === 'complete' ? 'ok' : 'warn') }, s === 'complete' ? 'Lead' : 'Partial lead') : el('span', { class: 'muted' }, '-'); }
+
+  // ---- dashboard ----
+  function viewDashboard(node) {
+    node.appendChild(el('h2', null, 'Dashboard'));
+    var box = el('div'); node.appendChild(box);
+    api('/admin/stats').then(function (s) {
+      function stat(n, l) { return el('div', { class: 'card stat' }, el('b', null, n), el('span', null, l)); }
+      box.appendChild(el('div', { class: 'stats' },
+        stat(s.totalChats, 'Total chats'), stat(s.chatsToday, 'Chats today'), stat(s.totalLeads, 'Total leads'),
+        stat(s.completeLeads, 'Complete leads'), stat(s.leadsToday, 'Leads today'), stat(s.conversionRate + '%', 'Chat to lead')));
+      var recent = el('div'); box.appendChild(el('h3', null, 'Latest leads')); box.appendChild(recent);
+      return api('/admin/leads?limit=8').then(function (l) { recent.appendChild(leadsTable(l.items, false)); });
+    }).catch(function (e) { errBox(box, e); });
+  }
+
+  // ---- chats ----
+  function viewChats(node) {
+    var f = { search: '', lead: false, page: 1 };
+    var list = el('div');
+    var search = el('input', { class: 'grow', type: 'search', placeholder: 'Search name, email, phone or message text' });
+    var leadOnly = el('input', { type: 'checkbox' });
+    function go() { load_(); }
+    search.addEventListener('keydown', function (e) { if (e.key === 'Enter') { f.search = search.value; f.page = 1; go(); } });
+    leadOnly.addEventListener('change', function () { f.lead = leadOnly.checked; f.page = 1; go(); });
+    node.appendChild(el('h2', null, 'Chats'));
+    node.appendChild(el('div', { class: 'bar' }, search, el('label', null, leadOnly, ' Leads only'),
+      el('button', { class: 'btn', onclick: function () { f.search = search.value; f.page = 1; go(); } }, 'Search')));
+    node.appendChild(list);
+    function load_() {
+      api('/admin/chats' + qs({ search: f.search, lead: f.lead ? '1' : '', page: f.page })).then(function (r) {
+        var rows = r.items.map(function (c) {
+          return el('tr', { class: 'click', onclick: function () { openChat(c.id); } },
+            el('td', null, c.persona), el('td', null, c.name || c.email || c.phone || el('span', { class: 'muted' }, 'Anonymous')),
+            el('td', null, c.preview), el('td', null, String(c.exchanges)), el('td', null, leadPill(c.leadStatus)), el('td', null, fmt(c.lastMessageAt)));
+        });
+        clear(list).appendChild(table(['Agent', 'Visitor', 'First message', 'Replies', 'Lead', 'Last activity'], rows));
+        list.appendChild(pager(r, function (p) { f.page = p; go(); }));
+      }).catch(function (e) { errBox(list, e); });
+    }
+    load_();
+  }
+
+  function openChat(id) {
+    var panel = el('div', { class: 'panel' }, el('p', { class: 'muted' }, 'Loading...'));
+    var overlay = el('div', { class: 'overlay', onclick: function (e) { if (e.target === overlay) overlay.remove(); } }, panel);
+    document.body.appendChild(overlay);
+    api('/admin/chats/' + id).then(function (c) {
+      clear(panel);
+      var del = state.user.role === 'admin' ? el('button', { class: 'btn danger', onclick: function () {
+        if (!confirm('Delete this chat and its lead permanently?')) return;
+        api('/admin/chats/' + id, { method: 'DELETE' }).then(function () { overlay.remove(); render(); }).catch(function (e) { alert(e.message); });
+      } }, 'Delete') : null;
+      panel.appendChild(el('div', { class: 'bar' }, el('h2', { class: 'grow', style: 'margin:0' }, 'Chat with ' + c.persona),
+        del, el('button', { class: 'btn ghost', onclick: function () { overlay.remove(); } }, 'Close')));
+      panel.appendChild(el('dl', { class: 'card kv' },
+        el('dt', null, 'Name'), el('dd', null, c.name || '-'), el('dt', null, 'Email'), el('dd', null, c.email || '-'),
+        el('dt', null, 'Phone'), el('dd', null, c.phone || '-'), el('dt', null, 'Questions asked'), el('dd', null, String(c.questionsAsked)),
+        el('dt', null, 'Started'), el('dd', null, fmt(c.startedAt)), el('dt', null, 'Page'), el('dd', null, c.pageUrl || '-'),
+        el('dt', null, 'IP'), el('dd', null, c.ip || '-')));
+      panel.appendChild(el('div', { class: 'msgs' }, c.messages.map(function (m) {
+        return el('div', { class: 'msg ' + m.role }, m.content, el('small', null, (m.role === 'user' ? 'Visitor' : c.persona) + ' · ' + fmt(m.at)));
+      })));
+    }).catch(function (e) { errBox(panel, e); });
+  }
+
+  // ---- leads ----
+  function leadsTable(items, withDelete, reload) {
+    var head = ['Name', 'Email', 'Phone', 'Issue', 'Status', 'Created', ''];
+    var rows = items.map(function (l) {
+      return el('tr', null, el('td', null, l.name || '-'), el('td', null, l.email || '-'), el('td', null, l.phone || '-'),
+        el('td', null, (l.issue || '').slice(0, 100)), el('td', null, leadPill(l.status)), el('td', null, fmt(l.createdAt)),
+        el('td', null, el('button', { class: 'btn ghost', style: 'padding:3px 8px', onclick: function () { openChat(l.chatId); } }, 'Chat'), ' ',
+          withDelete && state.user.role === 'admin' ? el('button', { class: 'btn danger', style: 'padding:3px 8px', onclick: function () {
+            if (confirm('Delete this lead?')) api('/admin/leads/' + l.id, { method: 'DELETE' }).then(reload).catch(function (e) { alert(e.message); });
+          } }, 'Delete') : null));
+    });
+    return table(head, rows);
+  }
+
+  function viewLeads(node) {
+    var f = { search: '', status: '', from: '', to: '', page: 1 };
+    var list = el('div');
+    var search = el('input', { class: 'grow', type: 'search', placeholder: 'Search name, email, phone or issue' });
+    var status = el('select', null, el('option', { value: '' }, 'All statuses'), el('option', { value: 'complete' }, 'Complete'), el('option', { value: 'partial' }, 'Partial'));
+    var from = el('input', { type: 'date', 'aria-label': 'From date' });
+    var to = el('input', { type: 'date', 'aria-label': 'To date' });
+    function apply() { f.search = search.value; f.status = status.value; f.from = from.value; f.to = to.value; f.page = 1; load_(); }
+    search.addEventListener('keydown', function (e) { if (e.key === 'Enter') apply(); });
+    var dl = el('button', { class: 'btn', onclick: function () {
+      f.search = search.value; f.status = status.value; f.from = from.value; f.to = to.value;
+      dl.disabled = true;
+      fetch('/api/admin/leads/export.csv' + qs({ search: f.search, status: f.status, from: f.from, to: f.to }), { headers: { Authorization: 'Bearer ' + state.token } })
+        .then(function (r) { if (!r.ok) throw new Error('Download failed'); return r.blob(); })
+        .then(function (b) {
+          var a = el('a', { href: URL.createObjectURL(b), download: 'leads-' + new Date().toISOString().slice(0, 10) + '.csv' });
+          document.body.appendChild(a); a.click(); a.remove();
+        }).catch(function (e) { alert(e.message); }).then(function () { dl.disabled = false; });
+    } }, 'Download CSV');
+    node.appendChild(el('h2', null, 'Leads'));
+    node.appendChild(el('div', { class: 'bar' }, search, status, from, to, el('button', { class: 'btn ghost', onclick: apply }, 'Filter'), dl));
+    node.appendChild(list);
+    function load_() {
+      api('/admin/leads' + qs({ search: f.search, status: f.status, from: f.from, to: f.to, page: f.page })).then(function (r) {
+        clear(list).appendChild(leadsTable(r.items, true, load_));
+        list.appendChild(pager(r, function (p) { f.page = p; load_(); }));
+      }).catch(function (e) { errBox(list, e); });
+    }
+    load_();
+  }
+
+  // ---- users (admin only) ----
+  function viewUsers(node) {
+    var list = el('div');
+    var name = el('input', { placeholder: 'Full name', required: true });
+    var email = el('input', { type: 'email', placeholder: 'Email', required: true });
+    var pass = el('input', { type: 'password', placeholder: 'Password (min 8)', required: true, minlength: 8, autocomplete: 'new-password' });
+    var role = el('select', null, el('option', { value: 'manager' }, 'Manager'), el('option', { value: 'admin' }, 'Admin'));
+    var msg = el('div', { class: 'err' });
+    var form = el('form', { class: 'bar', onsubmit: function (e) {
+      e.preventDefault(); msg.textContent = '';
+      api('/admin/users', { method: 'POST', body: { name: name.value, email: email.value, password: pass.value, role: role.value } })
+        .then(function () { form.reset(); load_(); }).catch(function (x) { msg.textContent = x.message; });
+    } }, name, email, pass, role, el('button', { class: 'btn', type: 'submit' }, 'Add user'));
+    node.appendChild(el('h2', null, 'Users'));
+    node.appendChild(el('p', { class: 'muted' }, 'Admin: full access, manages users, can delete chats and leads. Manager: can view chats and leads and download the CSV.'));
+    node.appendChild(el('div', { class: 'card', style: 'margin-bottom:12px' }, form, msg));
+    node.appendChild(list);
+    function patch(id, body) { return api('/admin/users/' + id, { method: 'PATCH', body: body }).then(load_).catch(function (e) { alert(e.message); }); }
+    function load_() {
+      api('/admin/users').then(function (r) {
+        var rows = r.items.map(function (u) {
+          var sel = el('select', { onchange: function () { patch(u.id, { role: sel.value }); } },
+            el('option', { value: 'manager' }, 'Manager'), el('option', { value: 'admin' }, 'Admin'));
+          sel.value = u.role;
+          return el('tr', null, el('td', null, u.name), el('td', null, u.email), el('td', null, sel),
+            el('td', null, el('span', { class: 'pill ' + (u.active ? 'ok' : 'off') }, u.active ? 'Active' : 'Disabled')),
+            el('td', null, el('button', { class: 'btn ghost', style: 'padding:3px 8px', onclick: function () { patch(u.id, { active: !u.active }); } }, u.active ? 'Disable' : 'Enable'), ' ',
+              el('button', { class: 'btn ghost', style: 'padding:3px 8px', onclick: function () {
+                var p = prompt('New password for ' + u.email + ' (min 8 characters):');
+                if (p) patch(u.id, { password: p });
+              } }, 'Reset password')));
+        });
+        clear(list).appendChild(table(['Name', 'Email', 'Role', 'Status', ''], rows));
+      }).catch(function (e) { errBox(list, e); });
+    }
+    load_();
+  }
+
+  // ---- boot ----
+  var saved = load('aaa_token');
+  if (saved) {
+    state.token = saved;
+    api('/auth/me').then(function (r) { state.user = r.user; render(); }).catch(function () { state.token = null; store('aaa_token', null); render(); });
+  } else render();
+})();
+</script>
+</body>
+</html>
