@@ -32,9 +32,9 @@
   nav { border-right: 1px solid var(--line); padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; background: var(--card); }
   nav .brand { padding: 2px 4px 14px; }
   .logo-wrap { display: inline-block; background: #fff; border-radius: 10px; padding: 6px 12px; margin-bottom: 12px; line-height: 0; }
-  .logo-wrap img { height: 34px; width: auto; display: block; }
+  .logo-wrap img { height: 40px; width: auto; display: block; }
   .logo-wrap.small { margin-bottom: 0; padding: 5px 9px; }
-  .logo-wrap.small img { height: 26px; }
+  .logo-wrap.small img { height: 30px; }
   nav button { text-align: left; background: transparent; border: 0; border-radius: 8px; padding: 9px 10px; cursor: pointer; font-weight: 600; color: var(--muted); }
   nav button.on { background: var(--soft); color: var(--ink); }
   nav .who { margin-top: auto; padding: 10px; font-size: 12px; }
@@ -131,7 +131,7 @@
         .catch(function (x) { err.textContent = x.message; btn.disabled = false; });
     } }, email, pass, btn, err);
     clear(root).appendChild(el('div', { class: 'login' }, el('div', { class: 'card' },
-      el('div', { class: 'logo-wrap' }, el('img', { src: '/admin/logo.png', alt: 'AskAnythingAnswers', width: '245', height: '66' })), el('h1', null, 'Admin panel'), el('p', { class: 'muted' }, 'Sign in to continue.'), form)));
+      el('div', { class: 'logo-wrap' }, el('img', { src: '/admin/logo.png', alt: 'AskAnythingAnswers', width: '296', height: '57' })), el('h1', null, 'Admin panel'), el('p', { class: 'muted' }, 'Sign in to continue.'), form)));
   }
 
   // ---- shell ----
@@ -149,7 +149,7 @@
       .map(function (k) { return el('button', { class: state.view === k ? 'on' : '', onclick: function () { state.view = k; render(); } }, views[k].label); });
     content = el('main');
     clear(root).appendChild(el('div', { class: 'app' },
-      el('nav', null, el('div', { class: 'brand' }, el('div', { class: 'logo-wrap small' }, el('img', { src: '/admin/logo.png', alt: 'AskAnythingAnswers', width: '245', height: '66' }))), navBtns,
+      el('nav', null, el('div', { class: 'brand' }, el('div', { class: 'logo-wrap small' }, el('img', { src: '/admin/logo.png', alt: 'AskAnythingAnswers', width: '296', height: '57' }))), navBtns,
         el('div', { class: 'who muted' }, state.user.name, el('br'), el('span', { class: 'pill' }, state.user.role), ' ',
           el('button', { class: 'btn ghost', style: 'padding:3px 8px;margin-top:6px', onclick: logout }, 'Sign out'))),
       content));
