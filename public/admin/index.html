@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>AskAnythingAnswers Admin</title>
+<link rel="icon" type="image/png" href="/admin/favicon.png">
 <style>
   :root {
     --bg: #faf8ff; --card: #fff; --ink: #131b2e; --muted: #5b6577; --line: #e2e7ff;
@@ -29,7 +30,11 @@
   .muted { color: var(--muted); } .err { color: var(--danger); min-height: 1.4em; }
   .app { display: grid; grid-template-columns: 210px 1fr; min-height: 100vh; }
   nav { border-right: 1px solid var(--line); padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; background: var(--card); }
-  nav .brand { font-weight: 800; letter-spacing: .02em; padding: 4px 10px 14px; }
+  nav .brand { padding: 2px 4px 14px; }
+  .logo-wrap { display: inline-block; background: #fff; border-radius: 10px; padding: 6px 12px; margin-bottom: 12px; line-height: 0; }
+  .logo-wrap img { height: 34px; width: auto; display: block; }
+  .logo-wrap.small { margin-bottom: 0; padding: 5px 9px; }
+  .logo-wrap.small img { height: 26px; }
   nav button { text-align: left; background: transparent; border: 0; border-radius: 8px; padding: 9px 10px; cursor: pointer; font-weight: 600; color: var(--muted); }
   nav button.on { background: var(--soft); color: var(--ink); }
   nav .who { margin-top: auto; padding: 10px; font-size: 12px; }
@@ -126,7 +131,7 @@
         .catch(function (x) { err.textContent = x.message; btn.disabled = false; });
     } }, email, pass, btn, err);
     clear(root).appendChild(el('div', { class: 'login' }, el('div', { class: 'card' },
-      el('h1', null, 'AskAnythingAnswers'), el('p', { class: 'muted' }, 'Admin panel. Sign in to continue.'), form)));
+      el('div', { class: 'logo-wrap' }, el('img', { src: '/admin/logo.png', alt: 'AskAnythingAnswers', width: '245', height: '66' })), el('h1', null, 'Admin panel'), el('p', { class: 'muted' }, 'Sign in to continue.'), form)));
   }
 
   // ---- shell ----
@@ -144,7 +149,7 @@
       .map(function (k) { return el('button', { class: state.view === k ? 'on' : '', onclick: function () { state.view = k; render(); } }, views[k].label); });
     content = el('main');
     clear(root).appendChild(el('div', { class: 'app' },
-      el('nav', null, el('div', { class: 'brand' }, 'AskAnythingAnswers'), navBtns,
+      el('nav', null, el('div', { class: 'brand' }, el('div', { class: 'logo-wrap small' }, el('img', { src: '/admin/logo.png', alt: 'AskAnythingAnswers', width: '245', height: '66' }))), navBtns,
         el('div', { class: 'who muted' }, state.user.name, el('br'), el('span', { class: 'pill' }, state.user.role), ' ',
           el('button', { class: 'btn ghost', style: 'padding:3px 8px;margin-top:6px', onclick: logout }, 'Sign out'))),
       content));
