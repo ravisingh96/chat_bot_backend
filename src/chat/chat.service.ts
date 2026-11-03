@@ -208,7 +208,7 @@ export class ChatService implements OnModuleInit {
     const raw = await this.ai.complete(messages);
     const text = raw ? this.enforceQuestions(raw, turn) : '';
     if (text) return text;
-    return turn.kind === 'answer' ? fallbackAnswer(history) : scriptedReply(turn);
+    return turn.kind === 'answer' ? fallbackAnswer(history) : scriptedReply(turn, history);
   }
 
   /** Guarantees the reply asks exactly one question on ask turns and none on the others. */

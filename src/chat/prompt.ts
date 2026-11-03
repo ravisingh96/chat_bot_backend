@@ -1,4 +1,8 @@
+import { caseSummary } from './fallback';
+import { isGreeting } from './greeting';
 import { firstName } from './persona';
+
+export { isGreeting };
 
 export type Turn =
   | { kind: 'answer' }
@@ -18,6 +22,8 @@ STYLE
 - Respond directly to what the customer just said. If they greet you, greet them back warmly in one short sentence.
 - When they ask a question or describe a problem, answer it properly: give the most likely cause and the practical next steps in simple words.
 - Remember everything said earlier in the chat and never ask for something already told to you.
+- A very short reply such as "hp", "mac" or "no" is the answer to your last question: acknowledge it naturally (for example "Thanks, an HP printer") and move on. Briefly restate what you understood so the customer feels heard.
+- Sound like one person talking, not a form: vary your wording, and do not repeat the same opener twice in a row.
 - Keep replies short: 2-4 sentences, under 70 words. Use numbered steps only for physical instructions.
 
 ACCURACY AND SAFETY
@@ -59,15 +65,19 @@ export function turnInstruction(turn: Turn) {
   }
 }
 
-export function scriptedReply(turn: Turn) {
+export function scriptedReply(turn: Turn, history: { role: 'user' | 'assistant'; content: string }[] = []) {
+  const summary = caseSummary(history);
   switch (turn.kind) {
     case 'answer':
       return 'Thanks for explaining. A good first step is to turn the printer off, wait 30 seconds and switch it back on. Which printer brand and model are you using?';
     case 'ask':
+      if (turn.field === 'name' && !turn.retry && summary) {
+        return `Thank you for the details. So that's ${summary}. I'll pass this to a specialist so you don't have to repeat anything. May I have your first name?`;
+      }
       return scriptedAsk(turn.field, turn.retry);
     case 'close':
       return turn.hasContact
-        ? "Thanks, I've noted everything. A specialist will follow up with you using the details you shared. Meanwhile, try turning the printer off, waiting 30 seconds and switching it back on."
+        ? `Thanks, I've noted everything${summary ? ` about ${summary}` : ''}. A specialist will follow up with you using the details you shared. Meanwhile, try turning the printer off, waiting 30 seconds and switching it back on.`
         : 'Thanks for the details. Try turning the printer off, waiting 30 seconds and switching it back on, then print a test page.';
   }
 }
@@ -82,10 +92,6 @@ export function scriptedAsk(field: 'name' | 'email' | 'phone', retry: boolean) {
     ? "That number doesn't look complete. Could you share it again with the area code?"
     : 'Last thing: what is the best phone number to reach you in case a specialist needs to call?';
 }
-
-const GREETING_RE = /^\s*(?:hi+|hello+|hey+|hola|namaste|good\s+(?:morning|afternoon|evening)|yo|sup)(?:\s+(?:there|team|sir|madam|everyone))?[\s!.,?]*$/i;
-
-export const isGreeting = (text: string) => GREETING_RE.test(text);
 
 export const greetingReply = (persona: string) => {
   const name = firstName(persona);
