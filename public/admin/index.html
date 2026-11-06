@@ -134,6 +134,30 @@
       el('div', { class: 'logo-wrap' }, el('img', { src: '/admin/logo.png', alt: 'AskAnythingAnswers', width: '296', height: '57' })), el('h1', null, 'Admin panel'), el('p', { class: 'muted' }, 'Sign in to continue.'), form)));
   }
 
+  // Hidden page, opened directly at /register. Nothing on the login screen links here.
+  function renderRegister() {
+    var err = el('div', { class: 'err', role: 'alert' });
+    var name = el('input', { type: 'text', required: true, minlength: '2', autocomplete: 'name', placeholder: 'Full name' });
+    var email = el('input', { type: 'email', required: true, autocomplete: 'username', placeholder: 'Email' });
+    var pass = el('input', { type: 'password', required: true, minlength: '8', autocomplete: 'new-password', placeholder: 'Password (min 8 characters)' });
+    var code = el('input', { type: 'password', autocomplete: 'off', placeholder: 'Registration code (if you were given one)' });
+    var btn = el('button', { class: 'btn', type: 'submit' }, 'Create account');
+    var form = el('form', { onsubmit: function (e) {
+      e.preventDefault(); btn.disabled = true; err.textContent = '';
+      var body = { name: name.value, email: email.value, password: pass.value };
+      if (code.value) body.code = code.value;
+      api('/auth/register', { method: 'POST', body: body })
+        .then(function (r) {
+          state.token = r.token; state.user = r.user; store('aaa_token', r.token);
+          try { history.replaceState(null, '', '/admin/'); } catch (x) {}
+          render();
+        })
+        .catch(function (x) { err.textContent = x.message; btn.disabled = false; });
+    } }, name, email, pass, code, btn, err);
+    clear(root).appendChild(el('div', { class: 'login' }, el('div', { class: 'card' },
+      el('div', { class: 'logo-wrap' }, el('img', { src: '/admin/logo.png', alt: 'AskAnythingAnswers', width: '296', height: '57' })), el('h1', null, 'Create account'), el('p', { class: 'muted' }, 'Register a new admin account.'), form)));
+  }
+
   // ---- shell ----
   var views = {
     dashboard: { label: 'Dashboard', fn: viewDashboard },
@@ -144,7 +168,7 @@
   var content;
 
   function render() {
-    if (!state.user) return renderLogin();
+    if (!state.user) return /^\/register\/?$/.test(location.pathname) ? renderRegister() : renderLogin();
     var navBtns = Object.keys(views).filter(function (k) { return !views[k].admin || state.user.role === 'admin'; })
       .map(function (k) { return el('button', { class: state.view === k ? 'on' : '', onclick: function () { state.view = k; render(); } }, views[k].label); });
     content = el('main');

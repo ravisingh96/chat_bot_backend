@@ -38,6 +38,8 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET || 'dev-only-secret-change-me',
   seedAdminEmail: process.env.SEED_ADMIN_EMAIL || 'admin@askanythinganswers.com',
   seedAdminPassword: process.env.SEED_ADMIN_PASSWORD || '',
+  // Optional. When set, /register also asks for this code. Leave empty to let anyone who opens /register create an admin.
+  registerCode: process.env.REGISTER_CODE || '',
   openaiKey: process.env.OPENAI_API_KEY || '',
   openaiModel: process.env.OPENAI_MODEL || 'gpt-4.1-nano',
   // Customer messages answered (each with one follow-up question) before name, email and phone are asked for.

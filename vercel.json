@@ -6,6 +6,7 @@
   },
   "rewrites": [
     { "source": "/admin", "destination": "/admin/index.html" },
+    { "source": "/register", "destination": "/admin/index.html" },
     { "source": "/api/(.*)", "destination": "/api" }
   ]
 }
