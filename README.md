@@ -49,9 +49,11 @@ the admin panel all work from one domain.
 
 ## Chat behaviour
 
+- The bot is a friendly plumbing expert. Pricing, when mentioned: experts charge hourly and share the rate first, a 10% service fee plus taxes applies, and payment is made offline and only if the customer is satisfied.
+- Off-topic requests (maid, lawyers, appliances) are politely redirected: "this is the plumbing desk, a specialist can connect you".
 - Each visitor gets a random persona name ("Michael C."). The reply is delayed 2-3 seconds (`REPLY_DELAY_*`).
 - A plain "hello" gets a greeting back. The next 4 messages (`ANSWER_TURNS`) each get a proper answer plus one follow-up
-  question that depends on what the customer said (model, error message, connection...). After that the bot asks for
+  question that depends on what the customer said (which tap/pipe/fixture, where the leak is, how long, water pressure, damage, city...). After that the bot asks for
   name, email and phone, one per reply. Details the customer already gave are not asked again, and a field that fails
   twice is skipped.
 - A lead is saved as soon as any contact detail is captured (status `partial`), and becomes `complete` when

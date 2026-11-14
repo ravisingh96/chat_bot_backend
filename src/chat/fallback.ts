@@ -1,5 +1,5 @@
-// Used when the AI call fails or no OPENAI_API_KEY is set. It runs a short intake like a support technician would:
-// it works out which question each customer reply answered (even one-word replies like "hp" or "no"), says
+// Used when the AI call fails or no OPENAI_API_KEY is set. It runs a short intake like a plumber would:
+// it works out which question each customer reply answered (even one-word replies like "yes" or "no"), says
 // something specific about it, and then asks for the next detail that is still missing.
 import { isGreeting } from './greeting';
 
@@ -8,90 +8,105 @@ interface Msg {
   content: string;
 }
 
-type Slot = 'brand' | 'os' | 'when' | 'conn' | 'signals' | 'else';
-type Topic = 'offline' | 'jam' | 'wifi' | 'scan' | 'driver' | 'ink' | 'slow' | 'power';
-
-const BRANDS = ['HP', 'Canon', 'Epson', 'Brother', 'Samsung', 'Xerox', 'Lexmark', 'Ricoh', 'Kyocera', 'Dell', 'Pixma', 'LaserJet', 'OfficeJet', 'DeskJet'];
+type Slot = 'fixture' | 'when' | 'supply' | 'damage' | 'city' | 'photo' | 'else';
+type Topic = 'burst' | 'leak' | 'drain' | 'toilet' | 'tank' | 'geyser' | 'pressure' | 'nowater' | 'gas' | 'fitting';
 
 // Each question has a marker so a later turn can tell which one the customer was answering.
 const QUESTIONS: Record<Slot, { marker: RegExp; text: string }> = {
-  brand: { marker: /brand and model/i, text: 'Which brand and model is your printer? You will usually find it on a label at the front or back.' },
-  os: { marker: /Windows PC, a Mac/i, text: 'Are you printing from a Windows PC, a Mac or a phone?' },
-  conn: { marker: /Wi-Fi, USB or Ethernet/i, text: 'Is the printer connected over Wi-Fi, USB or Ethernet?' },
-  when: { marker: /When did this start/i, text: 'When did this start, and did it happen suddenly or after an update or a change in your setup?' },
-  signals: { marker: /lights, sounds/i, text: 'When you try to use it, do you see any lights, sounds or error messages on the printer or your screen?' },
-  else: { marker: /anything else/i, text: 'Is there anything else I should note for the specialist?' },
+  fixture: { marker: /which tap, pipe or fixture/i, text: 'Which tap, pipe or fixture is it, and where in the house (kitchen, bathroom, outside)?' },
+  when: { marker: /When did this start/i, text: 'When did this start, and did it happen suddenly or get worse slowly?' },
+  supply: { marker: /water supply to that fixture/i, text: 'Is the water supply to that fixture turned off right now, or is it still running?' },
+  damage: { marker: /visible damage/i, text: 'Is there any visible damage, such as water stains on the wall or ceiling, a cracked pipe or rust?' },
+  city: { marker: /Which city or area/i, text: 'Which city or area are you in, so I can check if a plumber can visit you?' },
+  photo: { marker: /photo or a short video/i, text: 'Can you share a photo or a short video of the problem? It helps the plumber a lot.' },
+  else: { marker: /anything else/i, text: 'Is there anything else I should note for the plumber?' },
 };
 
 const TIPS: { topic: Topic; test: RegExp; tip: string; deeper: string }[] = [
   {
-    topic: 'power',
-    test: /(not|n'?t|won'?t|doesn'?t|isn'?t|never)\s+(?:\w+\s+)?(start|turn(ing)?\s*on|power(ing)?|boot|switch(ing)?\s*on)|no power|dead|not starting/i,
-    tip: 'Meanwhile, plug the power cable straight into a wall socket (not a power strip) and check it is firm at both ends.',
-    deeper: 'Also try a different wall socket, since a faulty outlet can look exactly like a dead printer.',
+    topic: 'gas',
+    test: /\bgas\b/i,
+    tip: 'If you smell gas, do not use switches or flames, open the windows and leave the area. Gas work should only be done by a licensed gas fitter, so a visiting plumber is needed here.',
+    deeper: 'Please keep the area ventilated and the gas supply off until a licensed professional has inspected it.',
   },
   {
-    topic: 'offline',
-    test: /offline|not responding|unavailable|can'?t (find|see)|not detected|not showing/i,
-    tip: 'An "offline" status usually means the computer and printer have lost their connection, so switch the printer off and on and check it shows as ready.',
-    deeper: 'Also open the printer list on your computer and untick "use printer offline" if it is ticked, then print again.',
+    topic: 'burst',
+    test: /burst|flood|gushing|pouring|water everywhere|pipe (broke|broken|cracked)|main (pipe|line)/i,
+    tip: 'Turn off the main water valve right away (usually near the meter or where the pipe enters the house), then open a tap to drain the pipe. If water is near sockets, switch off the electricity at the breaker too.',
+    deeper: 'Move valuables away from the water and mop up standing water, but keep clear of electrics until a plumber has looked at it.',
   },
   {
-    topic: 'jam',
-    test: /jam|stuck paper|paper (stuck|feed|pick)|won'?t feed/i,
-    tip: 'Switch the printer off, open the rear and front covers, and pull the sheet out slowly in the direction of the paper path so nothing tears.',
-    deeper: 'Check for small torn pieces near the rollers and make sure the tray is not overfilled.',
+    topic: 'geyser',
+    test: /geyser|water heater|hot water|heater|boiler|not heating|no hot|cold water only|lukewarm/i,
+    tip: 'Safety first: a geyser mixes electricity and water, so switch it off at the breaker before touching anything. Then check whether its thermostat, fuse or the power supply has tripped.',
+    deeper: 'If the geyser is leaking, dripping from the valve or making loud noises, switch it off and shut its inlet valve; a plumber should inspect it rather than you opening it up.',
   },
   {
-    topic: 'wifi',
-    test: /wi-?fi|wireless|network|router|pair/i,
-    tip: 'Make sure the printer is on the same Wi-Fi network as your computer, and restart the router and printer together.',
-    deeper: 'If it will not join, run the wireless setup from the printer menu again with the router close by.',
+    topic: 'toilet',
+    test: /toilet|commode|flush|cistern|\bwc\b/i,
+    tip: 'Lift the cistern lid and check whether the float is stuck or the flapper is not sealing; a constantly running flush is often a worn flapper or a float set too high. You can close the small valve behind the toilet to stop the water meanwhile.',
+    deeper: 'If it will not flush at all, check the chain is still attached to the handle and that the float rises freely.',
   },
   {
-    topic: 'scan',
-    test: /scan/i,
-    tip: 'Scanning needs its own software on top of the print driver, so check the manufacturer\'s scanner app is installed.',
-    deeper: 'Make sure the scanner is selected in that app and connected the same way as when you print.',
+    topic: 'tank',
+    test: /overflow|tank|overhead|sump|float valve|ball ?cock/i,
+    tip: 'An overflowing tank usually means the float valve is stuck or faulty, so turn off the pump or the inlet valve to the tank first and then check the float moves freely.',
+    deeper: 'If the float valve is cracked or corroded, it needs replacing; a plumber can do this quickly.',
   },
   {
-    topic: 'driver',
-    test: /driver|install|download|software|setup|update/i,
-    tip: 'The safest route is the official support page for your exact model, where you pick your operating system and download the matching driver.',
-    deeper: 'Close other print apps before installing and restart the computer once the driver finishes.',
+    topic: 'drain',
+    test: /drain|block|clog|choke|sewer|smell|gurgl|standing water|backing up/i,
+    tip: 'Avoid pouring chemical drain cleaners in straight away; first try a plunger over the opening (cover the overflow hole) and run hot water afterwards.',
+    deeper: 'Remove and clean the sink trap or strainer, since hair and grease collect there. If several drains are slow, the main line may be blocked and needs a plumber with a drain machine.',
   },
   {
-    topic: 'ink',
-    test: /ink|toner|cartridge|faded|streak|blank page|smudge/i,
-    tip: 'Take the cartridge out, reseat it firmly, and run the printer\'s own cleaning or alignment routine from its menu.',
-    deeper: 'Check the cartridge is the right one for your model and is not past its expiry date.',
+    topic: 'pressure',
+    test: /pressure|weak flow|low flow|trickle|barely (any )?water/i,
+    tip: 'Check whether it is one tap or the whole house: if it is one tap, the aerator or shower head is often clogged with scale, so unscrew it and soak it in vinegar.',
+    deeper: 'If the whole house is affected, check the main valve is fully open and ask neighbours whether supply is low; a partly closed valve or a leak can both cause it.',
   },
   {
-    topic: 'slow',
-    test: /slow|takes (long|forever)|stuck in (queue|spool)|spool|queue|pending|won'?t print|not printing|doesn'?t print/i,
-    tip: 'Cancel everything in the print queue, restart the printer, and send a single test page.',
-    deeper: 'If the queue keeps freezing, restarting the computer\'s print service often clears it.',
+    topic: 'nowater',
+    test: /no water|water (stopped|is gone|not coming)|dry tap|nothing comes out|no supply|water cut/i,
+    tip: 'First check whether it is only your home: see if neighbours have water, and confirm the main valve and tank/pump are on.',
+    deeper: 'If only one tap is dry, the shut-off valve under it may be closed or the pipe blocked, and a plumber can trace it.',
+  },
+  {
+    topic: 'leak',
+    test: /leak|drip|seep|wet|damp|moisture|puddle|spray|water (is )?coming/i,
+    tip: 'Turn off the shut-off valve under the fixture (or the main valve if there is none) and put a bucket or towel underneath to stop further damage.',
+    deeper: 'Dry the pipe with a cloth and watch where the first drop appears; it usually shows whether the joint, the washer or the pipe itself is at fault.',
+  },
+  {
+    topic: 'fitting',
+    test: /\btap\b|faucet|mixer|shower|basin|sink|bathroom|kitchen|bidet|install|fitting|replace|washer/i,
+    tip: 'Close the shut-off valve for that fixture before you touch it, and keep the old part so the plumber can match the size.',
+    deeper: 'Note the make or type of the fitting if it is printed on it, since that makes the replacement faster.',
   },
 ];
 
 const EMPATHY: Partial<Record<Topic, string>> = {
-  power: "I'm sorry to hear your printer isn't turning on.",
-  offline: "I'm sorry about the offline message. It's a common one and usually quick to fix.",
-  jam: 'A paper jam is frustrating, but it is usually easy to clear.',
-  wifi: 'Printer connection problems are common, and we can usually sort them out.',
-  ink: 'Print quality problems are annoying, but they are usually fixable.',
-  slow: "I'm sorry your printer isn't printing. Let's find out why.",
+  burst: "I'm sorry, a burst pipe is stressful. Let's get the water stopped first.",
+  leak: "I'm sorry about the leak. It's common and usually quick to fix once we know where it comes from.",
+  drain: 'A blocked drain is unpleasant, but it is usually fixable.',
+  toilet: 'A toilet problem is annoying, but it is usually an easy repair.',
+  tank: 'An overflowing tank wastes a lot of water, but it is normally a simple fix.',
+  geyser: "I'm sorry to hear your hot water isn't working. Let's find out why.",
+  pressure: 'Low water pressure is frustrating, but there are a few likely causes.',
+  nowater: "I'm sorry you have no water. Let's work out where the problem is.",
+  gas: 'Safety comes first with anything involving gas.',
+  fitting: 'Thanks for explaining, that helps me understand the job.',
 };
 
 interface Facts {
   issue?: string;
-  brand?: string;
-  model?: string;
-  brandText?: string;
-  os?: string;
+  fixture?: string;
+  fixtureText?: string;
+  location?: string;
   when?: string;
-  conn?: string;
-  signals?: string;
+  supply?: string;
+  damage?: string;
+  city?: string;
   topic?: Topic;
   /** which question the latest customer message answered; 'issue' for the first problem description */
   answered: Slot | 'issue' | null;
@@ -99,36 +114,31 @@ interface Facts {
 
 const NO_RE = /^\s*(no|nope|nah|nothing|none|not really|nil)\b/i;
 
-function findBrand(text: string) {
-  return BRANDS.find((b) => new RegExp(`\\b${b}\\b`, 'i').test(text));
+const FIXTURES: [RegExp, string][] = [
+  [/geyser|water heater|boiler/i, 'geyser'],
+  [/toilet|commode|cistern|flush|\bwc\b/i, 'toilet'],
+  [/shower/i, 'shower'],
+  [/\btap\b|faucet|mixer/i, 'tap'],
+  [/basin|washbasin/i, 'basin'],
+  [/\bsink\b/i, 'sink'],
+  [/drain|sewer/i, 'drain'],
+  [/\btank\b/i, 'water tank'],
+  [/pipe|pipeline|joint/i, 'pipe'],
+];
+
+function findFixture(text: string) {
+  return FIXTURES.find(([re]) => re.test(text))?.[1];
 }
 
-function findModel(text: string) {
-  return text.match(/\b[A-Za-z]{1,4}[- ]?\d{2,5}[A-Za-z]{0,3}\b/)?.[0];
-}
-
-function findOs(text: string) {
-  if (/\bmac(book)?\b|\bimac\b|macos|os ?x|\bapple\b/i.test(text)) return 'Mac';
-  if (/windows|\bwin ?(7|8|10|11)\b|\bpc\b/i.test(text)) return 'Windows';
-  if (/iphone|ipad|\bios\b/i.test(text)) return 'iPhone';
-  if (/android/i.test(text)) return 'Android phone';
-  if (/linux|ubuntu/i.test(text)) return 'Linux';
+function findLocation(text: string) {
+  if (/kitchen/i.test(text)) return 'kitchen';
+  if (/bath ?room|washroom|restroom/i.test(text)) return 'bathroom';
+  if (/outside|garden|terrace|roof|balcony|yard/i.test(text)) return 'outdoors';
   return undefined;
 }
 
-// A short reply to the "which system" question is taken as the answer even when typed loosely ("max" for Mac).
-function osFromShortReply(text: string) {
-  const t = text.trim();
-  if (/^m[ae]?[ack]/i.test(t)) return 'Mac';
-  if (/^w[iu]n/i.test(t)) return 'Windows';
-  return t.split(/\s+/).length <= 3 ? t : undefined;
-}
-
-function findConn(text: string) {
-  if (/usb/i.test(text)) return 'USB';
-  if (/ethernet|lan cable/i.test(text)) return 'Ethernet';
-  if (/wi-?fi|wireless/i.test(text)) return 'Wi-Fi';
-  return undefined;
+function findCity(text: string) {
+  return text.match(/\b(?:in|from|at|near)\s+([A-Z][a-zA-Z]+(?:\s[A-Z][a-zA-Z]+)?)\b/)?.[1];
 }
 
 function findTopic(text: string): Topic | undefined {
@@ -152,18 +162,16 @@ function collect(history: Msg[]): Facts {
       asked = null;
       continue;
     }
-    f.brand ??= findBrand(text);
-    if (asked === 'brand' || findBrand(text)) f.model ??= findModel(text);
-    f.os ??= findOs(text);
-    f.conn ??= findConn(text);
+    f.fixture ??= findFixture(text);
+    f.location ??= findLocation(text);
     f.topic = findTopic(text) ?? f.topic;
 
     f.answered = asked;
-    if (asked === 'brand') f.brandText = text;
-    else if (asked === 'os') f.os ??= osFromShortReply(text);
+    if (asked === 'fixture') f.fixtureText = text;
     else if (asked === 'when') f.when = text;
-    else if (asked === 'conn') f.conn ??= text;
-    else if (asked === 'signals') f.signals = text;
+    else if (asked === 'supply') f.supply = text;
+    else if (asked === 'damage') f.damage = text;
+    else if (asked === 'city') f.city = findCity(text) ?? (text.split(/\s+/).length <= 4 ? text : undefined);
     else if (!f.issue) {
       f.issue = text;
       f.answered = 'issue';
@@ -173,49 +181,52 @@ function collect(history: Msg[]): Facts {
   return f;
 }
 
-function printerName(f: Facts) {
-  const brand = f.brand ? (f.model ? `${f.brand} ${f.model}` : f.brand) : '';
-  return brand ? `your ${brand} printer` : 'the printer';
+function fixtureName(f: Facts) {
+  if (!f.fixture) return 'the problem';
+  return f.location && f.location !== 'outdoors' && !f.fixture.includes(f.location) ? `the ${f.location} ${f.fixture}` : `the ${f.fixture}`;
 }
 
 function symptom(f: Facts) {
   const t = `${f.issue ?? ''} ${f.when ?? ''}`;
-  if (TIPS[0].test.test(t)) return "isn't powering on";
-  if (/offline/i.test(t)) return 'shows as offline';
-  if (/jam/i.test(t)) return 'has a paper jam';
-  if (/won'?t print|not printing|doesn'?t print/i.test(t)) return "isn't printing";
+  if (/burst|gushing|flood/i.test(t)) return 'has burst';
+  if (/leak|drip/i.test(t)) return 'is leaking';
+  if (/block|clog|choke|won'?t drain|slow drain/i.test(t)) return 'is blocked';
+  if (/not heating|no hot|cold water/i.test(t)) return "isn't heating";
+  if (/keeps running|running/i.test(t)) return 'keeps running';
+  if (/overflow/i.test(t)) return 'is overflowing';
+  if (/pressure|trickle|weak/i.test(t)) return 'has low water pressure';
   return '';
 }
 
-/** One-line description of the case so far, e.g. "your HP printer on a Mac that isn't powering on". */
+/** One-line description of the case so far, e.g. "the kitchen tap that is leaking". */
 export function caseSummary(history: Msg[]): string {
   const f = collect(history);
-  const known = f.brand || f.os || symptom(f);
-  if (!known) return '';
-  const os = f.os ? ` on ${f.os === 'Mac' ? 'a Mac' : f.os}` : '';
   const sym = symptom(f);
-  return `${printerName(f)}${os}${sym ? ` that ${sym}` : ''}`;
+  if (!f.fixture && !sym) return '';
+  return `${fixtureName(f)}${sym ? ` that ${sym}` : ''}`;
 }
 
 function acknowledge(f: Facts, last: string, turn: number): string {
   switch (f.answered) {
     case 'issue':
       return EMPATHY[f.topic as Topic] ?? "I'm sorry to hear that. Let's get it sorted.";
-    case 'brand': {
-      const label = f.brand ? (f.model ? `${f.brand} ${f.model}` : f.brand) : f.brandText && f.brandText.split(/\s+/).length <= 5 ? f.brandText : '';
-      return label ? `Thanks, ${/^(hp|[aeiou])/i.test(label) ? 'an' : 'a'} ${label} printer, noted.` : 'Thanks, noted.';
+    case 'fixture': {
+      const label = f.fixture ? fixtureName(f).replace(/^the /, '') : f.fixtureText && f.fixtureText.split(/\s+/).length <= 5 ? f.fixtureText : '';
+      return label ? `Thanks, the ${label}, noted.` : 'Thanks, noted.';
     }
-    case 'os':
-      return f.os === 'Mac' ? "Thanks for letting me know you're using a Mac." : f.os ? `Thanks for letting me know you're using ${f.os}.` : 'Thanks for that.';
     case 'when': {
       const s = symptom({ ...f, issue: '', when: last });
-      if (s) return `I see, ${printerName(f)} ${s}.`;
-      return /yesterday|today|morning|night|week|ago|since|after|suddenly|update/i.test(last) ? 'Okay, that timing helps.' : 'Okay, thanks for explaining that.';
+      if (s) return `I see, ${fixtureName(f)} ${s}.`;
+      return /yesterday|today|morning|night|week|ago|since|after|suddenly|month/i.test(last) ? 'Okay, that timing helps.' : 'Okay, thanks for explaining that.';
     }
-    case 'conn':
-      return `Thanks, noted that it's connected over ${f.conn}.`;
-    case 'signals':
-      return NO_RE.test(last) ? 'Thank you for confirming there are no lights, sounds or messages.' : "Good to know, I'll note that down.";
+    case 'supply':
+      return /\b(off|closed|stopped)\b/i.test(last) && !NO_RE.test(last) ? 'Good, that will limit the damage.' : "Okay, thanks. Let's try to stop it soon.";
+    case 'damage':
+      return NO_RE.test(last) ? 'Good to hear there is no visible damage.' : "Thanks, I'll note that damage down for the plumber.";
+    case 'city':
+      return f.city ? `Thanks, ${f.city}, noted.` : 'Thanks for that.';
+    case 'photo':
+      return 'Thanks for letting me know.';
     default:
       return ['Got it.', 'Okay, thanks for that.', 'Alright, that helps.'][turn % 3];
   }
@@ -237,13 +248,14 @@ export function fallbackAnswer(history: Msg[]): string {
     else if (!said.includes(t.deeper)) parts.push(t.deeper);
   }
 
-  const wantsConn = ['offline', 'wifi', 'slow'].includes(f.topic ?? '');
+  const wet = ['burst', 'leak', 'tank', 'toilet'].includes(f.topic ?? '');
   const order: [boolean, Slot][] = [
-    [!f.brand && !f.brandText, 'brand'],
-    [!f.os, 'os'],
-    [wantsConn && !f.conn, 'conn'],
+    [!f.fixture && !f.fixtureText, 'fixture'],
     [!f.when, 'when'],
-    [!f.signals, 'signals'],
+    [wet && !f.supply, 'supply'],
+    [wet && !f.damage, 'damage'],
+    [!f.city, 'city'],
+    [true, 'photo'],
     [true, 'else'],
   ];
   const next = order.find(([need, slot]) => need && !QUESTIONS[slot].marker.test(said)) ?? order[order.length - 1];
