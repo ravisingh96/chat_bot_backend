@@ -25,6 +25,10 @@ interface SessionRow {
 type Field = 'name' | 'email' | 'phone';
 const FIELDS: Field[] = ['name', 'email', 'phone'];
 
+/** The contact details once name, email and phone have all been captured, otherwise null. */
+const leadOf = (s: { name: string | null; email: string | null; phone: string | null }) =>
+  s.name && s.email && s.phone ? { name: s.name, email: s.email, phone: s.phone } : null;
+
 const csvList = (s: string) => s.split(',').filter(Boolean) as Field[];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const randomDelay = () => config.delayMinMs + Math.random() * Math.max(0, config.delayMaxMs - config.delayMinMs);
@@ -67,6 +71,7 @@ export class ChatService implements OnModuleInit {
     return {
       sessionId,
       persona: s.persona,
+      lead: leadOf(s),
       messages: messages.map((m) => ({ role: m.role, content: m.content, at: m.created_at })),
     };
   }
@@ -137,6 +142,7 @@ export class ChatService implements OnModuleInit {
         reply,
         persona: done.persona,
         leadComplete: !!(done.name && done.email && done.phone),
+        lead: leadOf(done),
       };
     } finally {
       this.busy.delete(sessionId);
